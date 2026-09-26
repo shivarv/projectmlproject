@@ -1,0 +1,4 @@
+data/raw_olist/
+data/raw_commerce/*.csv
+data/*.duckdb
+__pycache__/
