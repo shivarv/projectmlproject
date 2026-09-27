@@ -1,0 +1,8 @@
+olist:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ../data/olist_dirty.duckdb
+      schema: main
+      threads: 4

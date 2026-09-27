@@ -1,0 +1,19 @@
+select
+    return_id,
+    order_id,
+    order_item_id,
+    product_id,
+    seller_id,
+    customer_id,
+    return_reason,
+    return_status,
+    resolution,
+    quantity_returned,
+    item_price_at_purchase,
+    freight_at_purchase,
+    requested_at,
+    received_at,
+    resolved_at,
+    resolution_days,
+    has_timestamp_inconsistency
+from "olist_dirty"."staging"."stg_order_returns"

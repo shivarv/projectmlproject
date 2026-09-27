@@ -203,7 +203,9 @@ order_coupons = pd.DataFrame({
 orph = rng.random(n_redeem) < 0.015
 order_coupons.loc[orph, "coupon_code"] = [
     f"LEGACY{k}" for k in rng.integers(100, 999, int(orph.sum()))]
-# (a) ETL replay duplicates -- byte-identical rows, same redemption_id
+# (a) ETL replay duplicates -- same redemption_id. NOTE: messy_money runs
+# after this, so duplicate pairs may end up with DIFFERENT encodings of the
+# same value; dedupe must key on redemption_id, not on the rendered amount.
 dupes = order_coupons.sample(frac=0.02, random_state=7)
 order_coupons = pd.concat([order_coupons, dupes], ignore_index=True)
 order_coupons = order_coupons.sample(frac=1.0, random_state=11).reset_index(drop=True)

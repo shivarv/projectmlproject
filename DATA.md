@@ -111,8 +111,11 @@ charge**. They are real fulfilled shipments: `quantity_shipped` > 0,
   `FIXED`/`BRL`/`amount`/`fixed_amount`, `FREESHIP`/`free_shipping`/`FRETE`
 - **`discount_value` is scale-ambiguous**: a 5% coupon is stored as `0.05` on some
   rows and `5.0` on others. Only magnitude + type disambiguate.
-- **306 duplicate redemptions** from an ETL replay, byte-identical including
-  `redemption_id`. `SUM(discount_amount_applied)` double-counts them.
+- **306 duplicate redemptions** from an ETL replay, sharing `redemption_id`.
+  `SUM(discount_amount_applied)` double-counts them (R$ 335,184.82 vs the true
+  R$ 328,743.81). Worse: **141 of the pairs carry different money encodings**
+  (`3,59` vs `3.59`), so `SELECT DISTINCT` on the *value* silently fails to
+  collapse them and lands on R$ 331,796.30. Dedupe must key on `redemption_id`.
 - **243 orphan `coupon_code`s** (`LEGACY***`) absent from `raw.coupons`. An inner
   join silently drops them.
 - `applies_to` varies: `ORDER_TOTAL` / `ITEMS_ONLY` / `FREIGHT` / `order_total`
@@ -158,3 +161,32 @@ The generated layer is not noise. Return rate tracks the real review score:
 
 Late deliveries carry an additional +3pp. Damage and defects resolve to
 replacement 52% of the time; buyer's remorse almost never does (5%).
+
+
+---
+
+## Phase 1 output — the clean layer
+
+`dbt/` builds two further schemas into the same DuckDB file. `raw` is never
+modified.
+
+| Schema | Models | Materialisation |
+|---|---:|---|
+| `staging` | 15 | views, 1:1 with `raw`, parsing and normalisation only |
+| `marts` | 12 | tables, conformed star schema |
+
+```bash
+cd dbt && DBT_PROFILES_DIR=. dbt run && DBT_PROFILES_DIR=. dbt test
+```
+
+Defects retired by Phase 1: `N3` money encodings, `D1` timestamp formats,
+`R2` refund sign, `R4` coupon dupes, `N1` bilingual reasons, `N2` status casing,
+`C1` customer key, `J1` geo fan-out, `J2` payments fan-out, `D4` clock skew
+(flagged, not hidden), `R8` stale snapshot (parsed in `staging`, deliberately
+never promoted to `marts`).
+
+Defects that **survive** cleaning and are Phase 2's job — they live in the
+question, not the data: `R1` revenue definition, `R3` refund settlement filter,
+`R5` orphan coupons, `R6` coupon scale, `R7` replacement handling, `D2` which
+date, `D3` recognition quarter, `C2` churn window, `F1` status filter,
+`F2` freight treatment, `J3` seller attribution.

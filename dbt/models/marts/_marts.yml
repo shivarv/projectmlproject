@@ -1,0 +1,169 @@
+version: 2
+
+models:
+  - name: fct_orders
+    description: "One row per order. All five lifecycle dates retained and named."
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+      - name: customer_unique_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customers')
+                field: customer_unique_id
+      - name: order_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: [delivered, shipped, canceled, unavailable, invoiced, processing, created, approved]
+      - name: merchandise_value
+        tests: [not_null]
+
+  - name: fct_order_items
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: product_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_products')
+                field: product_id
+      - name: seller_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('dim_sellers')
+                field: seller_id
+      - name: item_price
+        tests: [not_null]
+
+  - name: fct_payments
+    description: "Pre-aggregated to order grain to kill the 2,843-order fan-out."
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+
+  - name: fct_order_reviews
+    columns:
+      - name: order_id
+        tests: [unique, not_null]
+
+  - name: fct_coupon_redemptions
+    description: "Deduped on redemption_id; orphan coupon codes retained and flagged."
+    columns:
+      - name: redemption_id
+        tests: [unique, not_null]
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: discount_amount
+        tests: [not_null]
+
+  - name: fct_refunds
+    description: "refund_amount always positive; settlement made explicit."
+    columns:
+      - name: refund_id
+        tests: [unique, not_null]
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: refund_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: [PROCESSED, PENDING, FAILED, REVERSED]
+      - name: refund_type
+        tests:
+          - accepted_values:
+              arguments:
+                values: [FULL, PARTIAL, SHIPPING_ONLY, GOODWILL]
+
+  - name: fct_returns
+    columns:
+      - name: return_id
+        tests: [unique, not_null]
+      - name: order_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: return_reason
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [DAMAGED_IN_TRANSIT, DEFECTIVE, WRONG_ITEM, NOT_AS_DESCRIBED,
+                       MISSING_PARTS, SIZE_FIT, LATE_DELIVERY, NO_LONGER_WANTED]
+      - name: return_status
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [COMPLETED, APPROVED, REJECTED, REQUESTED, IN_TRANSIT]
+      - name: resolution
+        tests:
+          - accepted_values:
+              arguments:
+                values: [REFUND, REPLACEMENT, STORE_CREDIT, REJECTED]
+
+  - name: fct_replacements
+    columns:
+      - name: replacement_order_id
+        tests: [unique, not_null]
+      - name: original_order_id
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('fct_orders')
+                field: order_id
+      - name: return_id
+        tests:
+          - relationships:
+              arguments:
+                to: ref('fct_returns')
+                field: return_id
+
+  - name: dim_customers
+    description: "Grain is the PERSON (customer_unique_id), not the per-order key."
+    columns:
+      - name: customer_unique_id
+        tests: [unique, not_null]
+      - name: lifetime_order_count
+        tests: [not_null]
+
+  - name: dim_products
+    columns:
+      - name: product_id
+        tests: [unique, not_null]
+      - name: category
+        tests: [not_null]
+
+  - name: dim_sellers
+    columns:
+      - name: seller_id
+        tests: [unique, not_null]
+
+  - name: dim_geography
+    description: "Exactly one row per zip. Kills the 152x geolocation fan-out."
+    columns:
+      - name: zip_code_prefix
+        tests: [unique, not_null]
