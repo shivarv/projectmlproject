@@ -17,7 +17,8 @@ dropped · three arms.
 | Phase | State |
 |---|---|
 | 0. Dirty warehouse | **Done** — `data/olist_dirty.duckdb`, 15 tables in `raw`, 22 catalogued defects (see `DATA.md`) |
-| 1. Baseline schema | Not started |
+| 1. Baseline schema | **Done** — `dbt/`, 15 staging views + 12 marts, 50/50 dbt tests green |
+| 1b. Business rules (M2) | **Done** — `BUSINESS_RULES.md`, 48 rules, 56 figures dual-derived by `scripts/verify_business_rules.py` |
 | 2. Cube.js semantic layer | Not started |
 | 3. Gold eval set (60) | Not started |
 | 4. Harness + metrics | Not started |
@@ -77,7 +78,7 @@ Marts:
 |---|---|---|
 | `fct_orders` | order | canonical order date, one row per order, status normalised |
 | `fct_order_items` | order × item | merchandise + freight, seller attribution |
-| `fct_payments` | order | **pre-aggregated** to kill the 2,843-order fan-out |
+| `fct_payments` | order | **pre-aggregated** to kill the 2,961-order fan-out |
 | `fct_coupon_redemptions` | redemption | **deduped** on `redemption_id` (306 dupes), orphan codes preserved via LEFT JOIN |
 | `fct_refunds` | refund | `abs()` applied, settled-only flag, settlement date |
 | `fct_replacements` | replacement | zero-revenue units + COGS, kept out of sales |
@@ -168,7 +169,7 @@ wrong denominator is very hard to notice. 5 queries.
 
 **Recognised quarterly revenue (D2, D3, R1–R3).** Genuinely ambiguous in the
 raw data: **11,638 delivered orders fall in a different quarter by delivery date
-than by purchase date**, and **1,151 of 2,890 settled refunds (40%) settle in a
+than by purchase date**, and **1,151 of 2,808 settled, dated refunds (41%) settle in a
 later quarter than the sale**. Canonical rule: recognise on delivery, deduct
 refunds on settlement date. 8 queries.
 
